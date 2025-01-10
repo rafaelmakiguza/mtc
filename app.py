@@ -171,7 +171,7 @@ if st.button("Consultar e Prever"):
         else:
             st.warning("Coluna 'when' não encontrada. Verifique os dados do Firebase.")
             processed_data['timestamp'] = None  # Preenche com None se não estiver presente
-        processed_data['Predição'] = (predictions > 0.9).astype(int)
+        processed_data['Predição'] = (predictions > 0.8).astype(int)
 
         st.write("Resultados Previstos:")
         st.dataframe(processed_data[['timestamp','Predição']])
