@@ -151,6 +151,8 @@ if st.button("Consultar e Prever"):
 
     st.write("Convertendo dados para DataFrame...")
     df = pd.DataFrame.from_dict(data, orient='index')
+    st.write("Dados originais do Firebase:")
+    st.dataframe(df.head())
     st.write(f"DataFrame criado com {len(df)} linhas.")
 
     if df.empty:
