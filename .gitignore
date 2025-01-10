@@ -172,3 +172,6 @@ cython_debug/
 
 .DS_Store
 
+# Ignorar o arquivo de chave do Firebase
+crazytime-pedro-2022-firebase-adminsdk-6w9fr-a28187bdce_new.json
+
