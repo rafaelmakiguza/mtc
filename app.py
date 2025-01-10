@@ -162,7 +162,7 @@ if st.button("Consultar e Prever"):
         predictions = predict_with_model(processed_data)
 
         st.write("Adicionando predições ao DataFrame...")
-        processed_data['Predição'] = (predictions > 0.5).astype(int)
+        processed_data['Predição'] = (predictions > 0.9).astype(int)
 
         st.write("Resultados Previstos:")
         st.dataframe(processed_data[['timestamp','Predição']])
