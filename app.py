@@ -132,7 +132,7 @@ if st.button("Consultar e Prever"):
             df = df.sort_values(by='when', ascending=False)
         
         st.write("Dados originais do Firebase:")
-        st.dataframe(df.head(50))
+        st.dataframe(df.head(30))
 
         cache = cache_predictions()
         new_data = df[~df.index.isin(cache.keys())]
