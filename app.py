@@ -47,14 +47,15 @@ def preprocess_data(df):
     df = df.reset_index().rename(columns={'id': 'timestamp'})
     df = pd.get_dummies(data=df, columns=['type', 'color'])
     df['payout'] = pd.to_numeric(df['payout'], errors='coerce')
-    df['online_players'] = pd.to_numeric(df['online_players'], errors='coerce')
     df['total_bet'] = pd.to_numeric(df['total_bet'], errors='coerce')
-    df['winners'] = pd.to_numeric(df['winners'], errors='coerce')
 
     # Remover colunas desnecessárias
     st.write("Etapa 2: Removendo colunas desnecessárias...")
-    df = df.drop(columns=['when', 'multiplier', 'spin_result', 'type_Special Result'], errors='ignore')
+    df = df.drop(columns=['when', 'multiplier','online_players', 'spin_result', 'type_Special Result'], errors='ignore')
 
+    # Recalcular online_players
+    df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
+    
     # Feature Engineering
     st.write("Etapa 3: Criando novas features...")
     rolling_sum_window = 25
@@ -144,7 +145,7 @@ st.write("Clique no botão para consultar os últimos 10 dados do Firebase, proc
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_first(20).get()
+    data = ref.order_by_key().limit_to_last(20).get()
     st.write("Dados carregados.")
 
     st.write("Convertendo dados para DataFrame...")
