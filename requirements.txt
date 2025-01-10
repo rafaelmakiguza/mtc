@@ -3,3 +3,4 @@ firebase-admin
 xgboost
 numpy
 pandas
+sklearn
