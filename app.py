@@ -142,17 +142,17 @@ def predict_with_model(df):
 
 # Interface no Streamlit
 st.title("MVP com Feature Engineering e Predição")
-st.write("Clique no botão para consultar os últimos 10 dados do Firebase, processá-los e prever no modelo.")
+st.write("Clique no botão para consultar os últimos 50 dados do Firebase, processá-los e prever no modelo.")
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(10).get()
+    data = ref.order_by_key().limit_to_last(50).get()
     st.write("Dados carregados.")
 
     st.write("Convertendo dados para DataFrame...")
     df = pd.DataFrame.from_dict(data, orient='index')
     st.write("Dados originais do Firebase:")
-    st.dataframe(df.head())
+    st.dataframe(df.head(50))
     st.write(f"DataFrame criado com {len(df)} linhas.")
 
     if df.empty:
