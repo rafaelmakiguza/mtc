@@ -60,40 +60,40 @@ def preprocess_data(df):
     st.write("Etapa 3: Criando novas features...")
     rolling_sum_window = 25
     df['bank_profit'] = df['total_bet'] - df['payout']
-    df['rolling_sum'] = df['bank_profit'].rolling(window=rolling_sum_window).sum()
+    df['rolling_sum'] = df['bank_profit'].rolling(window=rolling_sum_window).sum().shift(1)
 
     window_size = 5
-    df['open'] = df['rolling_sum'].rolling(window=window_size).apply(lambda x: x[0], raw=True)
-    df['close'] = df['rolling_sum'].rolling(window=window_size).apply(lambda x: x[-1], raw=True)
-    df['high'] = df['rolling_sum'].rolling(window=window_size).max()
-    df['low'] = df['rolling_sum'].rolling(window=window_size).min()
+    df['open'] = df['rolling_sum'].rolling(window=window_size).apply(lambda x: x[0], raw=True).shift(1)
+    df['close'] = df['rolling_sum'].rolling(window=window_size).apply(lambda x: x[-1], raw=True).shift(1)
+    df['high'] = df['rolling_sum'].rolling(window=window_size).max().shift(1)
+    df['low'] = df['rolling_sum'].rolling(window=window_size).min().shift(1)
 
     df['velocity'] = df['rolling_sum'].diff().fillna(0)
     df['acceleration'] = df['velocity'].diff(3).fillna(0)
 
     dev_window = 10
     mult_bb = 2.0
-    df['basis'] = df['close'].rolling(window=dev_window).mean()
-    df['dev'] = df['close'].rolling(window=dev_window).std()
+    df['basis'] = df['close'].rolling(window=dev_window).mean().shift(1)
+    df['dev'] = df['close'].rolling(window=dev_window).std().shift(1)
     df['upperBB'] = df['basis'] + mult_bb * df['dev']
     df['lowerBB'] = df['basis'] - mult_bb * df['dev']
 
     short_window_macd = 7
     long_window_macd = 25
     signal_window = 11
-    df['ema_short'] = df['close'].ewm(span=short_window_macd, min_periods=1, adjust=False).mean()
-    df['ema_long'] = df['close'].ewm(span=long_window_macd, min_periods=1, adjust=False).mean()
+    df['ema_short'] = df['close'].ewm(span=short_window_macd, min_periods=1, adjust=False).mean().shift(1)
+    df['ema_long'] = df['close'].ewm(span=long_window_macd, min_periods=1, adjust=False).mean().shift(1)
     df['MACD'] = df['ema_short'] - df['ema_long']
-    df['Signal_Line'] = df['MACD'].ewm(span=signal_window, min_periods=1, adjust=False).mean()
+    df['Signal_Line'] = df['MACD'].ewm(span=signal_window, min_periods=1, adjust=False).mean().shift(1)
     df['MACD_Histogram'] = df['MACD'] - df['Signal_Line']
     df['MACD_Histogram_Signal_Interaction'] = df['MACD_Histogram'] * df['Signal_Line']
 
     ma_long_window = 40
     slope_ma_long_window = 30
-    df['MA_short'] = df['bank_profit'].rolling(window=10, min_periods=1).mean()
-    df['MA_long'] = df['bank_profit'].rolling(window=ma_long_window, min_periods=1).mean()
-    df['Slope_MA_long'] = df['MA_long'].diff() / slope_ma_long_window
-    df['MA_longer'] = df['bank_profit'].rolling(window=120, min_periods=1).mean()
+    df['MA_short'] = df['bank_profit'].rolling(window=10, min_periods=1).mean().shift(1)
+    df['MA_long'] = df['bank_profit'].rolling(window=ma_long_window, min_periods=1).mean().shift(1)
+    df['Slope_MA_long'] = df['MA_long'].diff().shift(1) / slope_ma_long_window
+    df['MA_longer'] = df['bank_profit'].rolling(window=120, min_periods=1).mean().shift(1)
 
     # Corrigir a coluna 'color_White'
     st.write("Etapa 4: Calculando acumulado comum...")
