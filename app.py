@@ -12,6 +12,12 @@ import numpy as np
 import xgboost as xgb
 from sklearn.preprocessing import StandardScaler
 
+# Cache para armazenar previsões
+@st.cache_data(show_spinner=False)
+def cache_predictions():
+    return {}
+
+# Inicialização do Firebase
 if not firebase_admin._apps:
     cred = credentials.Certificate({
         "type": st.secrets["firebase"]["type"],
@@ -24,12 +30,12 @@ if not firebase_admin._apps:
         "token_uri": st.secrets["firebase"]["token_uri"],
         "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
         "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
-        "universe_domain": st.secrets["firebase"]["universe_domain"]  # Campo adicional
+        "universe_domain": st.secrets["firebase"]["universe_domain"]
     })
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://crazytime-pedro-2022-default-rtdb.firebaseio.com/'
     })
-    
+
 # Referência ao nó do banco de dados
 ref = db.reference("/Double_blaze2")
 
@@ -41,23 +47,15 @@ model.load_model("modelo_xgboost.json")
 # Função para pré-tratar e criar features
 def preprocess_data(df):
     st.write("Iniciando o pré-processamento dos dados...")
-
-    # Pré-tratamento inicial
-    st.write("Etapa 1: Ajustando colunas iniciais...")
     df = df.reset_index().rename(columns={'id': 'timestamp'})
     df = pd.get_dummies(data=df, columns=['type', 'color'])
     df['payout'] = pd.to_numeric(df['payout'], errors='coerce')
     df['total_bet'] = pd.to_numeric(df['total_bet'], errors='coerce')
 
-    # Remover colunas desnecessárias
-    st.write("Etapa 2: Removendo colunas desnecessárias...")
-    df = df.drop(columns=['multiplier','online_players', 'spin_result', 'type_Special Result'], errors='ignore')
-
-    # Recalcular online_players
+    df = df.drop(columns=['multiplier', 'online_players', 'spin_result', 'type_Special Result'], errors='ignore')
     df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
     
-    # Feature Engineering
-    st.write("Etapa 3: Criando novas features...")
+    # Feature engineering com deslocamento para evitar vazamento de dados futuros
     rolling_sum_window = 25
     df['bank_profit'] = df['total_bet'] - df['payout']
     df['rolling_sum'] = df['bank_profit'].rolling(window=rolling_sum_window).sum().shift(1)
@@ -95,24 +93,6 @@ def preprocess_data(df):
     df['Slope_MA_long'] = df['MA_long'].diff().shift(1) / slope_ma_long_window
     df['MA_longer'] = df['bank_profit'].rolling(window=120, min_periods=1).mean().shift(1)
 
-    # Corrigir a coluna 'color_White'
-    st.write("Etapa 4: Calculando acumulado comum...")
-    if 'color_White' not in df.columns:
-        df['color_White'] = False  # Preencher com valores padrão
-
-    # Calcular 'acumulado_comum'
-    acumulado = 0
-    acumulados = []
-    for is_white in df['color_White']:
-        if not is_white:
-            acumulado += 1
-        else:
-            acumulado = 0
-        acumulados.append(acumulado)
-    df['acumulado_comum'] = acumulados
-
-    # Normalização
-    st.write("Etapa 5: Normalizando as features numéricas...")
     scaler = StandardScaler()
     numerical_features = [
         'dev', 'total_bet', 'online_players', 'MACD', 'MACD_Histogram',
@@ -120,25 +100,21 @@ def preprocess_data(df):
     ]
     df[numerical_features] = scaler.fit_transform(df[numerical_features])
 
-    # Ajustar as colunas esperadas pelo modelo
-    st.write("Etapa 6: Ajustando as features para o modelo...")
     expected_features = model.feature_names
     for col in expected_features:
         if col not in df.columns:
             df[col] = 0
     df = df[expected_features]
-
-    st.write("Pré-processamento concluído.")
     return df
 
-# Função para predição
+
+# Função para realizar predição
 def predict_with_model(df):
-    st.write("Iniciando predição com o modelo...")
     features_for_model = df.drop(columns=['when'], errors='ignore')
     dmatrix = xgb.DMatrix(features_for_model)
     predictions = model.predict(dmatrix)
-    st.write("Predição concluída.")
     return predictions
+
 
 # Interface no Streamlit
 st.title("MVP com Feature Engineering e Predição")
@@ -147,36 +123,28 @@ st.write("Clique no botão para consultar os últimos 50 dados do Firebase, proc
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
     data = ref.order_by_key().limit_to_last(50).get()
-    st.write("Dados carregados.")
 
-    st.write("Convertendo dados para DataFrame...")
-    df = pd.DataFrame.from_dict(data, orient='index')
-    
-    # Ordenar os dados originais pelo timestamp mais recente
-    if 'when' in df.columns:
-        df['when'] = pd.to_datetime(df['when'])
-        df = df.sort_values(by='when', ascending=False)
-        
-    st.write("Dados originais do Firebase:")
-    st.dataframe(df.head(50))
-    st.write(f"DataFrame criado com {len(df)} linhas.")
-
-    if df.empty:
+    if not data:
         st.error("Nenhum dado encontrado no Firebase!")
     else:
-        st.write("Iniciando o processamento dos dados...")
-        processed_data = preprocess_data(df)
+        df = pd.DataFrame.from_dict(data, orient='index')
 
-        st.write("Realizando predições...")
-        predictions = predict_with_model(processed_data)
+        if 'when' in df.columns:
+            df['when'] = pd.to_datetime(df['when'])
+            df = df.sort_values(by='when', ascending=False)
+        
+        st.write("Dados originais do Firebase:")
+        st.dataframe(df.head(50))
 
-        st.write("Adicionando predições ao DataFrame...")
-        processed_data['timestamp'] = df['when'].reset_index(drop=True)
-        processed_data['Predição'] = (predictions > 0.8).astype(int)
+        cache = cache_predictions()
+        new_data = df[~df.index.isin(cache.keys())]
 
-        # Ordenar os dados processados pelo timestamp mais recente
-        processed_data = processed_data.sort_values(by='timestamp', ascending=False)
+        if not new_data.empty:
+            processed_data = preprocess_data(new_data)
+            predictions = predict_with_model(processed_data)
+            for idx, pred in zip(new_data.index, predictions):
+                cache[idx] = {"timestamp": new_data.loc[idx, 'when'], "Predição": int(pred > 0.8)}
 
         st.write("Resultados Previstos (mais recentes primeiro):")
-        st.dataframe(processed_data[['timestamp', 'Predição']])
-
+        result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
+        st.dataframe(result_df)
