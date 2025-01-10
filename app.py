@@ -12,19 +12,31 @@ import numpy as np
 import xgboost as xgb
 from sklearn.preprocessing import StandardScaler
 
-# Inicializar Firebase Admin
 if not firebase_admin._apps:
-    cred = credentials.Certificate("/Users/rafaelyano/Desktop/Python/MTC/Streamlit/crazytime-pedro-2022-firebase-adminsdk-6w9fr-a28187bdce_new.json")
+    cred = credentials.Certificate({
+        "type": st.secrets["firebase"]["type"],
+        "project_id": st.secrets["firebase"]["project_id"],
+        "private_key_id": st.secrets["firebase"]["private_key_id"],
+        "private_key": st.secrets["firebase"]["private_key"],
+        "client_email": st.secrets["firebase"]["client_email"],
+        "client_id": st.secrets["firebase"]["client_id"],
+        "auth_uri": st.secrets["firebase"]["auth_uri"],
+        "token_uri": st.secrets["firebase"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
+        "universe_domain": st.secrets["firebase"]["universe_domain"]  # Campo adicional
+    })
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://crazytime-pedro-2022-default-rtdb.firebaseio.com/'
     })
-
+    
 # Referência ao nó do banco de dados
 ref = db.reference("/Double_blaze2")
 
 # Carregar o modelo XGBoost
 model = xgb.Booster()
 model.load_model("modelo_xgboost.json")
+
 
 # Função para pré-tratar e criar features
 def preprocess_data(df):
