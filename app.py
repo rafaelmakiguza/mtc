@@ -165,8 +165,13 @@ if st.button("Consultar e Prever"):
         predictions = predict_with_model(processed_data)
 
         st.write("Adicionando predições ao DataFrame...")
+        # Use diretamente a coluna 'when' como timestamp
+        if 'when' in df.columns:
+            processed_data['timestamp'] = df['when']
+        else:
+            st.warning("Coluna 'when' não encontrada. Verifique os dados do Firebase.")
+            processed_data['timestamp'] = None  # Preenche com None se não estiver presente
         processed_data['Predição'] = (predictions > 0.9).astype(int)
-        processed_data['timestamp'] = df['when']
 
         st.write("Resultados Previstos:")
         st.dataframe(processed_data[['timestamp','Predição']])
