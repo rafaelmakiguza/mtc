@@ -151,6 +151,12 @@ if st.button("Consultar e Prever"):
 
     st.write("Convertendo dados para DataFrame...")
     df = pd.DataFrame.from_dict(data, orient='index')
+    
+    # Ordenar os dados originais pelo timestamp mais recente
+    if 'when' in df.columns:
+        df['when'] = pd.to_datetime(df['when'])
+        df = df.sort_values(by='when', ascending=False)
+        
     st.write("Dados originais do Firebase:")
     st.dataframe(df.head(50))
     st.write(f"DataFrame criado com {len(df)} linhas.")
@@ -165,14 +171,12 @@ if st.button("Consultar e Prever"):
         predictions = predict_with_model(processed_data)
 
         st.write("Adicionando predições ao DataFrame...")
-        # Use diretamente a coluna 'when' como timestamp
-        if 'when' in df.columns:
-            processed_data['timestamp'] = df['when']
-        else:
-            st.warning("Coluna 'when' não encontrada. Verifique os dados do Firebase.")
-            processed_data['timestamp'] = None  # Preenche com None se não estiver presente
+        processed_data['timestamp'] = df['when'].reset_index(drop=True)
         processed_data['Predição'] = (predictions > 0.8).astype(int)
 
-        st.write("Resultados Previstos:")
-        st.dataframe(processed_data[['timestamp','Predição']])
+        # Ordenar os dados processados pelo timestamp mais recente
+        processed_data = processed_data.sort_values(by='timestamp', ascending=False)
+
+        st.write("Resultados Previstos (mais recentes primeiro):")
+        st.dataframe(processed_data[['timestamp', 'Predição']])
 
