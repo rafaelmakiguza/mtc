@@ -74,7 +74,7 @@ def preprocess_data(df):
     df['basis'] = df['close'].rolling(window=dev_window).mean().shift(1)
     df['dev'] = df['close'].rolling(window=dev_window).std().shift(1)
     df['upperBB'] = df['basis'] + mult_bb * df['dev']
-    df['lowerBB'] = df['basis'] - mult_bb * df['dev']
+    df['lowerBB'] = df['basis'] - df['dev']
 
     short_window_macd = 7
     long_window_macd = 25
@@ -144,9 +144,10 @@ if st.button("Consultar e Prever"):
                 cache[idx] = {
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
+                    "Probabilidade": pred,
                     "Predição": int(pred > 0.8)
                 }
 
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
-        st.dataframe(result_df)
+        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']])
