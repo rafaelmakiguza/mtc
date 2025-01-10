@@ -51,7 +51,7 @@ def preprocess_data(df):
 
     # Remover colunas desnecessárias
     st.write("Etapa 2: Removendo colunas desnecessárias...")
-    df = df.drop(columns=['when', 'multiplier','online_players', 'spin_result', 'type_Special Result'], errors='ignore')
+    df = df.drop(columns=['multiplier','online_players', 'spin_result', 'type_Special Result'], errors='ignore')
 
     # Recalcular online_players
     df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
@@ -134,7 +134,8 @@ def preprocess_data(df):
 # Função para predição
 def predict_with_model(df):
     st.write("Iniciando predição com o modelo...")
-    dmatrix = xgb.DMatrix(df)
+    features_for_model = df.drop(columns=['when'], errors='ignore')
+    dmatrix = xgb.DMatrix(features_for_model)
     predictions = model.predict(dmatrix)
     st.write("Predição concluída.")
     return predictions
@@ -145,7 +146,7 @@ st.write("Clique no botão para consultar os últimos 10 dados do Firebase, proc
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(20).get()
+    data = ref.order_by_key().limit_to_last(10).get()
     st.write("Dados carregados.")
 
     st.write("Convertendo dados para DataFrame...")
@@ -163,6 +164,7 @@ if st.button("Consultar e Prever"):
 
         st.write("Adicionando predições ao DataFrame...")
         processed_data['Predição'] = (predictions > 0.9).astype(int)
+        processed_data['timestamp'] = df['when']
 
         st.write("Resultados Previstos:")
         st.dataframe(processed_data[['timestamp','Predição']])
