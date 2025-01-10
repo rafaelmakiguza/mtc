@@ -43,7 +43,6 @@ ref = db.reference("/Double_blaze2")
 model = xgb.Booster()
 model.load_model("modelo_xgboost.json")
 
-
 # Função para pré-tratar e criar features
 def preprocess_data(df):
     st.write("Iniciando o pré-processamento dos dados...")
@@ -52,9 +51,10 @@ def preprocess_data(df):
     df['payout'] = pd.to_numeric(df['payout'], errors='coerce')
     df['total_bet'] = pd.to_numeric(df['total_bet'], errors='coerce')
 
-    df = df.drop(columns=['multiplier', 'online_players', 'spin_result', 'type_Special Result'], errors='ignore')
+    # Remover colunas desnecessárias para o modelo
+    df = df.drop(columns=['multiplier', 'spin_result', 'type_Special Result'], errors='ignore')
     df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
-    
+
     # Feature engineering com deslocamento para evitar vazamento de dados futuros
     rolling_sum_window = 25
     df['bank_profit'] = df['total_bet'] - df['payout']
@@ -107,22 +107,20 @@ def preprocess_data(df):
     df = df[expected_features]
     return df
 
-
 # Função para realizar predição
 def predict_with_model(df):
-    features_for_model = df.drop(columns=['when'], errors='ignore')
+    features_for_model = df.drop(columns=['when', 'color'], errors='ignore')
     dmatrix = xgb.DMatrix(features_for_model)
     predictions = model.predict(dmatrix)
     return predictions
 
-
 # Interface no Streamlit
 st.title("MVP com Feature Engineering e Predição")
-st.write("Clique no botão para consultar os últimos 50 dados do Firebase, processá-los e prever no modelo.")
+st.write("Clique no botão para consultar os últimos 200 dados do Firebase, processá-los e prever no modelo.")
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(50).get()
+    data = ref.order_by_key().limit_to_last(200).get()
 
     if not data:
         st.error("Nenhum dado encontrado no Firebase!")
@@ -143,7 +141,11 @@ if st.button("Consultar e Prever"):
             processed_data = preprocess_data(new_data)
             predictions = predict_with_model(processed_data)
             for idx, pred in zip(new_data.index, predictions):
-                cache[idx] = {"timestamp": new_data.loc[idx, 'when'], "Predição": int(pred > 0.8)}
+                cache[idx] = {
+                    "timestamp": new_data.loc[idx, 'when'],
+                    "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
+                    "Predição": int(pred > 0.8)
+                }
 
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
