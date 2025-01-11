@@ -74,7 +74,7 @@ def preprocess_data(df):
     df['basis'] = df['close'].rolling(window=dev_window).mean().shift(1)
     df['dev'] = df['close'].rolling(window=dev_window).std().shift(1)
     df['upperBB'] = df['basis'] + mult_bb * df['dev']
-    df['lowerBB'] = df['basis'] - mult_bb * df['dev']
+    df['lowerBB'] = df['basis'] - df['dev']
 
     short_window_macd = 7
     long_window_macd = 25
@@ -120,7 +120,7 @@ st.write("Clique no botão para consultar os últimos 2000 dados do Firebase, pr
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(2000).get()
+    data = ref.order_by_key().limit_to_last(2170).get()
 
     if not data:
         st.error("Nenhum dado encontrado no Firebase!")
