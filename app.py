@@ -74,7 +74,7 @@ def preprocess_data(df):
     df['basis'] = df['close'].rolling(window=dev_window).mean().shift(1)
     df['dev'] = df['close'].rolling(window=dev_window).std().shift(1)
     df['upperBB'] = df['basis'] + mult_bb * df['dev']
-    df['lowerBB'] = df['basis'] - df['dev']
+    df['lowerBB'] = df['basis'] - mult_bb * df['dev']
 
     short_window_macd = 7
     long_window_macd = 25
