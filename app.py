@@ -116,11 +116,11 @@ def predict_with_model(df):
 
 # Interface no Streamlit
 st.title("MVP com Feature Engineering e Predição")
-st.write("Clique no botão para consultar os últimos 200 dados do Firebase, processá-los e prever no modelo.")
+st.write("Clique no botão para consultar os últimos 2000 dados do Firebase, processá-los e prever no modelo.")
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(200).get()
+    data = ref.order_by_key().limit_to_last(2000).get()
 
     if not data:
         st.error("Nenhum dado encontrado no Firebase!")
