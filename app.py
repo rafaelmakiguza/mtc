@@ -120,7 +120,7 @@ st.write("Clique no botão para consultar os últimos 2000 dados do Firebase, pr
 
 if st.button("Consultar e Prever"):
     st.write("Buscando dados do Firebase...")
-    data = ref.order_by_key().limit_to_last(2170).get()
+    data = ref.order_by_key().limit_to_last(2000).get()
 
     if not data:
         st.error("Nenhum dado encontrado no Firebase!")
@@ -129,19 +129,20 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when', ascending=False)
-        
+            df = df.sort_values(by='when')  # Ordena do mais antigo para o mais recente
+
         st.write("Dados originais do Firebase:")
         st.dataframe(df.head(30))
 
         cache = cache_predictions()
-        new_data = df[~df.index.isin(cache.keys())]
+        new_data = df[~df['when'].isin(cache.keys())]  # Verifica pelo timestamp
 
         if not new_data.empty:
+            new_data = new_data.sort_values(by='when')  # Garante a previsão sequencial
             processed_data = preprocess_data(new_data)
             predictions = predict_with_model(processed_data)
             for idx, pred in zip(new_data.index, predictions):
-                cache[idx] = {
+                cache[new_data.loc[idx, 'when']] = {
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
                     "Probabilidade": pred,
