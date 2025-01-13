@@ -129,7 +129,7 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when')  # Ordena do mais antigo para o mais recente
+            df = df.sort_values(by='when', ascending=False)  # Ordena do mais recente pro mais antigo
 
         st.write("Dados originais do Firebase:")
         st.dataframe(df.head(30))
