@@ -164,7 +164,7 @@ if st.button("Consultar e Prever"):
 
         # Exibir resultados
         def highlight_row(row):
-            return ['background-color: lightgreen' if row['Predição'] == 1 else '' for _ in row]
+            return ['background-color: darkgreen' if row['Predição'] == 1 else '' for _ in row]
 
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = result_df.sort_values(by='timestamp', ascending=False)
