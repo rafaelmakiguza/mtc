@@ -44,14 +44,17 @@ model.load_model("modelo_xgboost.json")
 
 # Função para pré-tratar e criar features
 def preprocess_data(df):
+    st.write("Iniciando o pré-processamento dos dados...")
     df = df.reset_index().rename(columns={'id': 'timestamp'})
     df = pd.get_dummies(data=df, columns=['type', 'color'])
     df['payout'] = pd.to_numeric(df['payout'], errors='coerce')
     df['total_bet'] = pd.to_numeric(df['total_bet'], errors='coerce')
 
+    # Remover colunas desnecessárias para o modelo
     df = df.drop(columns=['multiplier', 'spin_result', 'type_Special Result'], errors='ignore')
     df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
 
+    # Feature engineering com deslocamento para evitar vazamento de dados futuros
     rolling_sum_window = 25
     df['bank_profit'] = df['total_bet'] - df['payout']
     df['rolling_sum'] = df['bank_profit'].rolling(window=rolling_sum_window).sum().shift(1)
@@ -70,7 +73,7 @@ def preprocess_data(df):
     df['basis'] = df['close'].rolling(window=dev_window).mean().shift(1)
     df['dev'] = df['close'].rolling(window=dev_window).std().shift(1)
     df['upperBB'] = df['basis'] + mult_bb * df['dev']
-    df['lowerBB'] = df['basis'] - df['dev']
+    df['lowerBB'] = df['basis'] - mult_bb * df['dev']
 
     short_window_macd = 7
     long_window_macd = 25
@@ -125,10 +128,10 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when', ascending=True)  # Garantir a previsão na ordem cronológica
-
+            df = df.sort_values(by='when', ascending=False)
+        
         st.write("Dados originais do Firebase:")
-        st.dataframe(df.tail(30))
+        st.dataframe(df.head(30))
 
         cache = cache_predictions()
         new_data = df[~df.index.isin(cache.keys())]
@@ -141,15 +144,28 @@ if st.button("Consultar e Prever"):
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
                     "Probabilidade": pred,
-                    "Predição": int(pred > 0.8),
+                    "Predição": int(pred > 0.8)
                 }
 
-        result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
+        # Cálculo de white_density
+        result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp')
+        result_df['is_white'] = (result_df['color'] == 'White').astype(int)
+        result_df['future_white_density_30'] = result_df['is_white'].shift(-30).rolling(window=30).sum()
+        result_df['target_white_density'] = (result_df['future_white_density_30'] >= 3).astype(int)
 
-        # Calcular a métrica de densidade futura
-        result_df['future_white_density_30'] = result_df['color'].shift(-30).rolling(window=50).mean()
-        result_df['target_white_density'] = (result_df['future_white_density_30'] > 0.09).astype(int)
+        # Estatísticas de precisão
+        total_pred_1 = (result_df['Predição'] == 1).sum()
+        total_correct_1 = ((result_df['Predição'] == 1) & (result_df['target_white_density'] == 1)).sum()
+        precision_class_1 = total_correct_1 / total_pred_1 if total_pred_1 > 0 else 0
+
+        st.write(f"Total previsões como classe 1: {total_pred_1}")
+        st.write(f"Total corretas como classe 1: {total_correct_1}")
+        st.write(f"Precisão para classe 1: {precision_class_1:.2%}")
+
+        # Exibir resultados
+        def highlight_row(row):
+            return ['background-color: lightgreen' if row['Predição'] == 1 else '' for _ in row]
 
         st.write("Resultados Previstos (mais recentes primeiro):")
-        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição', 'target_white_density']])
-
+        result_df = result_df.sort_values(by='timestamp', ascending=False)
+        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']].style.apply(highlight_row, axis=1))
