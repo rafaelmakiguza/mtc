@@ -128,44 +128,26 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when', ascending=False)
-        
+            df = df.sort_values(by='when')  # Ordena do mais antigo para o mais recente
+
         st.write("Dados originais do Firebase:")
         st.dataframe(df.head(30))
 
         cache = cache_predictions()
-        new_data = df[~df.index.isin(cache.keys())]
+        new_data = df[~df['when'].isin(cache.keys())]  # Verifica pelo timestamp
 
         if not new_data.empty:
+            new_data = new_data.sort_values(by='when')  # Garante a previsão sequencial
             processed_data = preprocess_data(new_data)
             predictions = predict_with_model(processed_data)
             for idx, pred in zip(new_data.index, predictions):
-                cache[idx] = {
+                cache[new_data.loc[idx, 'when']] = {
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
                     "Probabilidade": pred,
                     "Predição": int(pred > 0.8)
                 }
 
-        # Cálculo de white_density
-        result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp')
-        result_df['is_white'] = (result_df['color'] == 'White').astype(int)
-        result_df['future_white_density_30'] = result_df['is_white'].shift(-30).rolling(window=30).sum()
-        result_df['target_white_density'] = (result_df['future_white_density_30'] >= 3).astype(int)
-
-        # Estatísticas de precisão
-        total_pred_1 = (result_df['Predição'] == 1).sum()
-        total_correct_1 = ((result_df['Predição'] == 1) & (result_df['target_white_density'] == 1)).sum()
-        precision_class_1 = total_correct_1 / total_pred_1 if total_pred_1 > 0 else 0
-
-        st.write(f"Total previsões como classe 1: {total_pred_1}")
-        st.write(f"Total corretas como classe 1: {total_correct_1}")
-        st.write(f"Precisão para classe 1: {precision_class_1:.2%}")
-
-        # Exibir resultados
-        def highlight_row(row):
-            return ['background-color: darkgreen' if row['Predição'] == 1 else '' for _ in row]
-
         st.write("Resultados Previstos (mais recentes primeiro):")
-        result_df = result_df.sort_values(by='timestamp', ascending=False)
-        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']].style.apply(highlight_row, axis=1))
+        result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
+        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']])
