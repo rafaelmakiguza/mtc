@@ -150,4 +150,21 @@ if st.button("Consultar e Prever"):
 
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
-        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']])
+        
+        # Cálculo de precisão da classe 1
+        valid_predictions = result_df.dropna(subset=['Probabilidade'])
+        predicted_positives = valid_predictions['Predição'].sum()
+        actual_positives = (valid_predictions['color'] == 'White').sum()  # Exemplo de como identificar brancos
+        precision = (predicted_positives / actual_positives) if actual_positives > 0 else 0
+
+        st.metric("Classe 1 Previsões", f"{predicted_positives}")
+        st.metric("Precisão Classe 1", f"{precision:.2%}")
+
+        # Estilizar tabela
+        def highlight_row(row):
+            if row['Predição'] == 1:
+                return ['background-color: darkgreen'] * len(row)
+            return [''] * len(row)
+
+        styled_df = result_df.style.apply(highlight_row, axis=1)
+        st.dataframe(styled_df)
