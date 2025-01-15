@@ -154,12 +154,10 @@ if st.button("Consultar e Prever"):
         # Cálculo de precisão da classe 1
         valid_predictions = result_df.dropna(subset=['Probabilidade'])
         predicted_positives = valid_predictions['Predição'].sum()
-        correct_predictions = valid_predictions.query('Predição == 1 and color == "White"').shape[0]
-        actual_positives = (valid_predictions['color'] == 'White').sum()
-        precision = (correct_predictions / actual_positives) if actual_positives > 0 else 0
+        actual_positives = (valid_predictions['color'] == 'White').sum()  # Exemplo de como identificar brancos
+        precision = (predicted_positives / actual_positives) if actual_positives > 0 else 0
 
         st.metric("Classe 1 Previsões", f"{predicted_positives}")
-        st.metric("Classe 1 Corretas", f"{correct_predictions}")
         st.metric("Precisão Classe 1", f"{precision:.2%}")
 
         # Estilizar tabela
