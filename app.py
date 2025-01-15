@@ -3,7 +3,6 @@
 
 # In[ ]:
 
-
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, db
@@ -126,10 +125,10 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when', ascending=True)  # Previsão do mais antigo para o mais recente
-        
+            df = df.sort_values(by='when', ascending=True)  # Garantir a previsão na ordem cronológica
+
         st.write("Dados originais do Firebase:")
-        st.dataframe(df.tail(30))  # Mostrar os últimos dados em ordem cronológica para evitar confusão
+        st.dataframe(df.tail(30))
 
         cache = cache_predictions()
         new_data = df[~df.index.isin(cache.keys())]
@@ -142,9 +141,15 @@ if st.button("Consultar e Prever"):
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
                     "Probabilidade": pred,
-                    "Predição": int(pred > 0.8)
+                    "Predição": int(pred > 0.8),
                 }
 
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
+
+        # Calcular a métrica de densidade futura
+        result_df['future_white_density_30'] = result_df['color'].shift(-30).rolling(window=50).mean()
+        result_df['target_white_density'] = (result_df['future_white_density_30'] > 0.09).astype(int)
+
         st.write("Resultados Previstos (mais recentes primeiro):")
-        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']])
+        st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição', 'target_white_density']])
+
