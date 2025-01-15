@@ -45,17 +45,14 @@ model.load_model("modelo_xgboost.json")
 
 # Função para pré-tratar e criar features
 def preprocess_data(df):
-    st.write("Iniciando o pré-processamento dos dados...")
     df = df.reset_index().rename(columns={'id': 'timestamp'})
     df = pd.get_dummies(data=df, columns=['type', 'color'])
     df['payout'] = pd.to_numeric(df['payout'], errors='coerce')
     df['total_bet'] = pd.to_numeric(df['total_bet'], errors='coerce')
 
-    # Remover colunas desnecessárias para o modelo
     df = df.drop(columns=['multiplier', 'spin_result', 'type_Special Result'], errors='ignore')
     df['online_players'] = (df['total_bet'] / 17.66).round().astype(int)
 
-    # Feature engineering com deslocamento para evitar vazamento de dados futuros
     rolling_sum_window = 25
     df['bank_profit'] = df['total_bet'] - df['payout']
     df['rolling_sum'] = df['bank_profit'].rolling(window=rolling_sum_window).sum().shift(1)
@@ -129,26 +126,25 @@ if st.button("Consultar e Prever"):
 
         if 'when' in df.columns:
             df['when'] = pd.to_datetime(df['when'])
-            df = df.sort_values(by='when', ascending=False)  # Ordena do mais recente pro mais antigo
-
+            df = df.sort_values(by='when', ascending=True)  # Previsão do mais antigo para o mais recente
+        
         st.write("Dados originais do Firebase:")
-        st.dataframe(df.head(30))
+        st.dataframe(df.tail(30))  # Mostrar os últimos dados em ordem cronológica para evitar confusão
 
         cache = cache_predictions()
-        new_data = df[~df['when'].isin(cache.keys())]  # Verifica pelo timestamp
+        new_data = df[~df.index.isin(cache.keys())]
 
         if not new_data.empty:
-            new_data = new_data.sort_values(by='when')  # Garante a previsão sequencial
             processed_data = preprocess_data(new_data)
             predictions = predict_with_model(processed_data)
             for idx, pred in zip(new_data.index, predictions):
-                cache[new_data.loc[idx, 'when']] = {
+                cache[idx] = {
                     "timestamp": new_data.loc[idx, 'when'],
                     "color": new_data.loc[idx, 'color'] if 'color' in new_data.columns else None,
                     "Probabilidade": pred,
                     "Predição": int(pred > 0.8)
                 }
 
-        st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
+        st.write("Resultados Previstos (mais recentes primeiro):")
         st.dataframe(result_df[['timestamp', 'color', 'Probabilidade', 'Predição']])
