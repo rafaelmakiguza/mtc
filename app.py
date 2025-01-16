@@ -150,19 +150,20 @@ if st.button("Consultar e Prever"):
 
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
-        
-        # Cálculo de precisão da classe 1
-        valid_predictions = result_df.dropna(subset=['Probabilidade'])
-        predicted_positives = valid_predictions['Predição'].sum()
-        valid_predictions['future_density'] = (
-            valid_predictions['color'].shift(-30).rolling(window=30).apply(lambda x: (x == 'White').sum())
-        )
-        true_positives = (valid_predictions['future_density'] >= 3).sum()
 
-        precision = (true_positives / predicted_positives) if predicted_positives > 0 else 0
+        # Cálculo de precisão da classe 1 (apenas nos primeiros 1500 registros)
+        if not result_df.empty:
+            limited_df = result_df.iloc[:1500].copy()
+            limited_df['color_binary'] = (limited_df['color'] == 'White').astype(int)
+            limited_df['future_density'] = limited_df['color_binary'].shift(-30).rolling(window=30).sum()
+            true_positives = (limited_df.loc[limited_df['Predição'] == 1, 'future_density'] >= 3).sum()
+            predicted_positives = limited_df['Predição'].sum()
+            precision = (true_positives / predicted_positives) if predicted_positives > 0 else 0
 
-        st.metric("Classe 1 Previsões", f"{predicted_positives}")
-        st.metric("Precisão Classe 1", f"{precision:.2%}")
+            st.metric("Classe 1 Previsões (1500)", f"{predicted_positives}")
+            st.metric("Precisão Classe 1 (1500)", f"{precision:.2%}")
+        else:
+            st.warning("Nenhum dado válido para análise.")
 
         # Estilizar tabela
         def highlight_row(row):
