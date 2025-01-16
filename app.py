@@ -9,7 +9,9 @@ from firebase_admin import credentials, db
 import pandas as pd
 import numpy as np
 import xgboost as xgb
+import altair as alt
 from sklearn.preprocessing import StandardScaler
+
 
 # Cache para armazenar previsões
 @st.cache_data(show_spinner=False)
