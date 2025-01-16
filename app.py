@@ -153,15 +153,12 @@ if st.button("Consultar e Prever"):
         
         # Cálculo de precisão da classe 1
         valid_predictions = result_df.dropna(subset=['Probabilidade'])
-
-        # Contagem de positivos verdadeiros e totais previstos como classe 1
-        true_positives = valid_predictions[
-            (valid_predictions['Predição'] == 1) & (valid_predictions['color'] == 'White')
-        ].shape[0]
-
         predicted_positives = valid_predictions['Predição'].sum()
+        valid_predictions['future_density'] = (
+            valid_predictions['color'].shift(-30).rolling(window=30).apply(lambda x: (x == 'White').sum())
+        )
+        true_positives = (valid_predictions['future_density'] >= 3).sum()
 
-        # Calcular a precisão
         precision = (true_positives / predicted_positives) if predicted_positives > 0 else 0
 
         st.metric("Classe 1 Previsões", f"{predicted_positives}")
