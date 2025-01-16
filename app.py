@@ -151,19 +151,47 @@ if st.button("Consultar e Prever"):
         st.write("Resultados Previstos (mais recentes primeiro):")
         result_df = pd.DataFrame.from_dict(cache, orient='index').sort_values(by='timestamp', ascending=False)
 
-        # Cálculo de precisão da classe 1 (apenas nos primeiros 1500 registros)
-        if not result_df.empty:
-            limited_df = result_df.iloc[:1500].copy()
-            limited_df['color_binary'] = (limited_df['color'] == 'White').astype(int)
-            limited_df['future_density'] = limited_df['color_binary'].shift(-30).rolling(window=30).sum()
-            true_positives = (limited_df.loc[limited_df['Predição'] == 1, 'future_density'] >= 3).sum()
-            predicted_positives = limited_df['Predição'].sum()
-            precision = (true_positives / predicted_positives) if predicted_positives > 0 else 0
+        # Limitar a 1500 primeiras linhas para precisão
+        limited_df = result_df.iloc[:1500].copy()
+        limited_df['color_binary'] = (limited_df['color'] == 'White').astype(int)
+        limited_df['future_density'] = limited_df['color_binary'].shift(-30).rolling(window=30).sum()
 
-            st.metric("Classe 1 Previsões (1500)", f"{predicted_positives}")
-            st.metric("Precisão Classe 1 (1500)", f"{precision:.2%}")
-        else:
-            st.warning("Nenhum dado válido para análise.")
+        # Cálculo de precisão da classe 1
+        true_positives = (limited_df.loc[limited_df['Predição'] == 1, 'future_density'] >= 3).sum()
+        predicted_positives = limited_df['Predição'].sum()
+        precision = (true_positives / predicted_positives) if predicted_positives > 0 else 0
+
+        st.metric("Classe 1 Previsões (1500)", f"{predicted_positives}")
+        st.metric("Precisão Classe 1 (1500)", f"{precision:.2%}")
+
+        # Adicionar gráfico para mostrar precisão por faixa de probabilidade
+        st.write("Distribuição de acertos por faixa de probabilidade:")
+
+        # Criar faixas de probabilidade
+        bins = [0.8, 0.85, 0.9, 0.95, 1.0]
+        labels = ["0.8-0.85", "0.85-0.9", "0.9-0.95", "0.95-1.0"]
+        limited_df['probability_range'] = pd.cut(limited_df['Probabilidade'], bins=bins, labels=labels, right=False)
+
+        # Contar acertos e total de previsões por faixa
+        ranges_df = (
+            limited_df[limited_df['Predição'] == 1]
+            .groupby('probability_range')['future_density']
+            .apply(lambda x: (x >= 3).sum())
+            .reset_index(name='acertos')
+        )
+        ranges_df['total'] = limited_df[limited_df['Predição'] == 1].groupby('probability_range').size().values
+        ranges_df['precisao'] = ranges_df['acertos'] / ranges_df['total']
+
+        # Criar o gráfico
+        chart = alt.Chart(ranges_df).mark_bar().encode(
+            x=alt.X('probability_range', title="Faixa de Probabilidade"),
+            y=alt.Y('precisao', title="Precisão"),
+            tooltip=['acertos', 'total', 'precisao']
+        ).properties(
+            title="Precisão por Faixa de Probabilidade"
+        )
+
+        st.altair_chart(chart, use_container_width=True)
 
         # Estilizar tabela
         def highlight_row(row):
